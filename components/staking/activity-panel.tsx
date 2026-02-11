@@ -1,7 +1,8 @@
 "use client";
 
-import { ArrowUpRight, ArrowDownRight, Clock } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Clock, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getExplorerUrl } from "@/lib/contracts/web3";
 
 export interface ActivityItem {
   id: string;
@@ -11,6 +12,7 @@ export interface ActivityItem {
   shares: string;
   shareSymbol: string;
   timestamp: Date;
+  txHash?: string;
 }
 
 interface ActivityPanelProps {
@@ -40,7 +42,7 @@ export function ActivityPanel({ activities }: ActivityPanelProps) {
           <div>
             <CardTitle className="text-foreground">Recent Activity</CardTitle>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Your staking transactions
+              On-chain transactions
             </p>
           </div>
         </div>
@@ -90,9 +92,22 @@ export function ActivityPanel({ activities }: ActivityPanelProps) {
                     </p>
                   </div>
                 </div>
-                <span className="text-xs text-muted-foreground shrink-0">
-                  {formatTime(activity.timestamp)}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {activity.txHash && (
+                    <a
+                      href={getExplorerUrl(activity.txHash, "tx")}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="View transaction on Etherscan"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    {formatTime(activity.timestamp)}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

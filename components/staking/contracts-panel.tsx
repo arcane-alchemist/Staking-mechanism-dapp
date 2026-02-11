@@ -10,6 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { getExplorerUrl } from "@/lib/contracts/web3";
 
 interface ContractInfo {
   label: string;
@@ -81,15 +82,17 @@ function ContractRow({ contract }: { contract: ContractInfo }) {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
-                type="button"
+              <a
+                href={getExplorerUrl(contract.address, "address")}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
               >
                 <ExternalLink className="h-4 w-4" />
-              </button>
+              </a>
             </TooltipTrigger>
             <TooltipContent className="bg-popover border-border text-popover-foreground">
-              <p>View on explorer</p>
+              <p>View on Holesky Etherscan</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -111,7 +114,7 @@ export function ContractsPanel({ contracts, isDeployed }: ContractsPanelProps) {
               Deployed Contracts
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Contract addresses and ABIs
+              Holesky Testnet
             </p>
           </div>
         </div>
@@ -137,9 +140,18 @@ export function ContractsPanel({ contracts, isDeployed }: ContractsPanelProps) {
 
             <div className="mt-4 p-4 rounded-lg bg-primary/5 border border-primary/10">
               <p className="text-xs text-muted-foreground">
-                Contract addresses and ABIs are stored locally. In production,
-                these will be hardcoded into your application for permanent
-                access.
+                Contract addresses and ABIs are stored in localStorage. These
+                addresses are deployed on Holesky testnet (Chain ID: 17000) and
+                can be verified on{" "}
+                <a
+                  href="https://holesky.etherscan.io"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  holesky.etherscan.io
+                </a>
+                .
               </p>
             </div>
           </div>

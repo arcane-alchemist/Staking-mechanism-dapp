@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Hexagon, Wallet, ChevronDown, ExternalLink, Copy, Check } from "lucide-react";
+import {
+  Hexagon,
+  Wallet,
+  ChevronDown,
+  ExternalLink,
+  Copy,
+  Check,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getExplorerUrl } from "@/lib/contracts/web3";
 
 interface HeaderProps {
   walletAddress: string | null;
@@ -17,7 +25,11 @@ interface HeaderProps {
   onDisconnect: () => void;
 }
 
-export function Header({ walletAddress, onConnect, onDisconnect }: HeaderProps) {
+export function Header({
+  walletAddress,
+  onConnect,
+  onDisconnect,
+}: HeaderProps) {
   const [copied, setCopied] = useState(false);
 
   const shortenAddress = (address: string) =>
@@ -44,7 +56,9 @@ export function Header({ walletAddress, onConnect, onDisconnect }: HeaderProps) 
           <h1 className="text-lg font-bold tracking-tight text-foreground">
             StakeVault
           </h1>
-          <p className="text-xs text-muted-foreground">DeFi Staking Protocol</p>
+          <p className="text-xs text-muted-foreground">
+            Holesky Testnet
+          </p>
         </div>
       </div>
 
@@ -69,7 +83,15 @@ export function Header({ walletAddress, onConnect, onDisconnect }: HeaderProps) 
         </a>
       </nav>
 
-      <div>
+      <div className="flex items-center gap-3">
+        {/* Network Badge */}
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary border border-border">
+          <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+          <span className="text-xs font-medium text-muted-foreground">
+            Holesky
+          </span>
+        </div>
+
         {walletAddress ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -99,9 +121,17 @@ export function Header({ walletAddress, onConnect, onDisconnect }: HeaderProps) 
                 )}
                 {copied ? "Copied!" : "Copy Address"}
               </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2 text-foreground focus:bg-secondary focus:text-foreground">
+              <DropdownMenuItem
+                onClick={() =>
+                  window.open(
+                    getExplorerUrl(walletAddress, "address"),
+                    "_blank"
+                  )
+                }
+                className="gap-2 text-foreground focus:bg-secondary focus:text-foreground"
+              >
                 <ExternalLink className="h-4 w-4" />
-                View on Explorer
+                View on Etherscan
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border" />
               <DropdownMenuItem
