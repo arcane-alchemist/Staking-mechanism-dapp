@@ -1,7 +1,7 @@
 import { BrowserProvider, Contract, ethers } from "ethers";
 import {
   ERC20_ABI,
-  ERC20_BYTECODE,
+  ASSET_TOKEN_BYTECODE,
   SHARE_TOKEN_ABI,
   SHARE_TOKEN_BYTECODE,
   STAKING_VAULT_ABI,
@@ -145,7 +145,7 @@ export async function deployERC20(
   await ensureHoodiNetwork();
   const provider = getProvider();
   const signer = await provider.getSigner();
-  const factory = new ethers.ContractFactory(ERC20_ABI, ERC20_BYTECODE, signer);
+  const factory = new ethers.ContractFactory(ERC20_ABI, ASSET_TOKEN_BYTECODE, signer);
   return sendDeployTx(factory, signer, [name, symbol]);
 }
 
