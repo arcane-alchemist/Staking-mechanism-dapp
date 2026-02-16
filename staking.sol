@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract AssetToken is ERC20, Ownable {
-    constructor() ERC20("USDNTL", "USDNTL") Ownable(msg.sender) {
+    constructor(string memory name, string memory symbol) ERC20(name, symbol) Ownable(msg.sender) {
         _mint(msg.sender, 1000000 * 10 ** decimals());
     }
 
@@ -18,7 +18,7 @@ contract AssetToken is ERC20, Ownable {
 contract ShareToken is ERC20, Ownable {
     address public stakingContract;
 
-    constructor() ERC20("Staked USDNTL", "S USDNTL") Ownable(msg.sender) {}
+    constructor(string memory name, string memory symbol) ERC20(name, symbol) Ownable(msg.sender) {}
 
     function setStakingContract(address _stakingContract) external onlyOwner {
         stakingContract = _stakingContract;
