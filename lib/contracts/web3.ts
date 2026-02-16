@@ -101,10 +101,11 @@ export async function getConnectedAddress(): Promise<string | null> {
   }
 }
 
-// Explicit gas for deploys (avoids estimateGas issues and "missing revert data" on some testnets).
+// ---- Contract Deployment ----
+// Deploy by sending tx with explicit data + gasLimit to avoid estimateGas (which can fail with "missing revert data" on some RPCs/testnets).
+
 const DEPLOY_GAS_LIMIT = 8_000_000;
 
-/** Send deploy tx with explicit data + gasLimit so wallet/RPC never drop bytecode. */
 async function sendDeployTx(
   factory: ethers.ContractFactory,
   signer: ethers.Signer,
@@ -145,7 +146,11 @@ export async function deployERC20(
   await ensureHoodiNetwork();
   const provider = getProvider();
   const signer = await provider.getSigner();
-  const factory = new ethers.ContractFactory(ERC20_ABI, ASSET_TOKEN_BYTECODE, signer);
+  const factory = new ethers.ContractFactory(
+    ERC20_ABI,
+    ASSET_TOKEN_BYTECODE,
+    signer
+  );
   return sendDeployTx(factory, signer, [name, symbol]);
 }
 
