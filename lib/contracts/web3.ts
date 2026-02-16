@@ -1,7 +1,11 @@
 import { BrowserProvider, Contract, ethers } from "ethers";
 import {
   ERC20_ABI,
+  ERC20_BYTECODE,
+  SHARE_TOKEN_ABI,
+  SHARE_TOKEN_BYTECODE,
   STAKING_VAULT_ABI,
+  STAKING_VAULT_BYTECODE,
   HOODI_CHAIN,
   HOODI_CHAIN_ID,
   HOODI_EXPLORER,
@@ -72,11 +76,19 @@ async function ensureHoodiNetwork(): Promise<void> {
 
 // ---- Wallet ----
 
+/**
+ * Connect wallet: request accounts first (so MetaMask shows Connect and user approves),
+ * then switch to Ethereum Hoodi. Doing network switch before connect can cause "Failed to connect to MetaMask".
+ */
 export async function connectWallet(): Promise<string> {
-  await ensureHoodiNetwork();
   const provider = getProvider();
   const accounts = await provider.send("eth_requestAccounts", []);
-  return accounts[0];
+  const address = accounts[0];
+  if (!address) {
+    throw new Error("No accounts returned. Unlock MetaMask and try again.");
+  }
+  await ensureHoodiNetwork();
+  return address;
 }
 
 export async function getConnectedAddress(): Promise<string | null> {
@@ -89,7 +101,42 @@ export async function getConnectedAddress(): Promise<string | null> {
   }
 }
 
-// ---- Contract Deployment ----
+// Explicit gas for deploys (avoids estimateGas issues and "missing revert data" on some testnets).
+const DEPLOY_GAS_LIMIT = 8_000_000;
+
+/** Send deploy tx with explicit data + gasLimit so wallet/RPC never drop bytecode. */
+async function sendDeployTx(
+  factory: ethers.ContractFactory,
+  signer: ethers.Signer,
+  args: unknown[],
+  gasLimit: number = DEPLOY_GAS_LIMIT
+): Promise<string> {
+  const deployTx = await factory.getDeployTransaction(...args);
+  const data =
+    typeof deployTx.data === "string"
+      ? deployTx.data
+      : deployTx.data
+        ? ethers.hexlify(deployTx.data)
+        : "";
+  if (!data || data === "0x") {
+    throw new Error("Deploy transaction has no bytecode (data is empty).");
+  }
+  const tx = await signer.sendTransaction({
+    data,
+    gasLimit,
+  });
+  const receipt = await tx.wait();
+  if (receipt && (receipt as { status?: number }).status === 0) {
+    throw new Error(
+      "Deployment reverted. The network may need more gas or the contract constructor failed. Try again or use a different RPC."
+    );
+  }
+  const address = receipt?.contractAddress;
+  if (!address) {
+    throw new Error("Deployment failed: no contract address in receipt.");
+  }
+  return address;
+}
 
 export async function deployERC20(
   name: string,
@@ -98,16 +145,24 @@ export async function deployERC20(
   await ensureHoodiNetwork();
   const provider = getProvider();
   const signer = await provider.getSigner();
+  const factory = new ethers.ContractFactory(ERC20_ABI, ERC20_BYTECODE, signer);
+  return sendDeployTx(factory, signer, [name, symbol]);
+}
 
-  const factory = new ethers.ContractFactory(ERC20_ABI, "0x", signer);
-
-  // Use a minimal proxy deploy - the actual bytecode should come from your compiled Solidity
-  // For now we deploy via the factory pattern
-  const contract = await factory.deploy(name, symbol);
-  await contract.waitForDeployment();
-
-  const address = await contract.getAddress();
-  return address;
+/** Deploy share token using the dedicated share-token bytecode (mint/burn/setStakingContract). */
+export async function deployShareToken(
+  name: string,
+  symbol: string
+): Promise<string> {
+  await ensureHoodiNetwork();
+  const provider = getProvider();
+  const signer = await provider.getSigner();
+  const factory = new ethers.ContractFactory(
+    SHARE_TOKEN_ABI,
+    SHARE_TOKEN_BYTECODE,
+    signer
+  );
+  return sendDeployTx(factory, signer, [name, symbol]);
 }
 
 export async function deployStakingVault(
@@ -118,21 +173,17 @@ export async function deployStakingVault(
   await ensureHoodiNetwork();
   const provider = getProvider();
   const signer = await provider.getSigner();
-
-  // Hash the metadata into bytes32 for on-chain storage
   const metadataString = JSON.stringify(metadata);
-  const metadataHash = ethers.keccak256(ethers.toUtf8Bytes(metadataString));
-
   const factory = new ethers.ContractFactory(
     STAKING_VAULT_ABI,
-    "0x",
+    STAKING_VAULT_BYTECODE,
     signer
   );
-  const contract = await factory.deploy(assetAddress, shareAddress, metadataHash);
-  await contract.waitForDeployment();
-
-  const address = await contract.getAddress();
-  return address;
+  return sendDeployTx(factory, signer, [
+    assetAddress,
+    shareAddress,
+    metadataString,
+  ]);
 }
 
 // ---- Read Operations ----
@@ -144,36 +195,39 @@ export async function fetchOnChainState(
   const provider = getProvider();
 
   const assetContract = new Contract(contracts.asset, ERC20_ABI, provider);
-  const shareContract = new Contract(contracts.share, ERC20_ABI, provider);
+  const shareContract = new Contract(contracts.share, SHARE_TOKEN_ABI, provider);
   const stakingContract = new Contract(
     contracts.staking,
     STAKING_VAULT_ABI,
     provider
   );
 
+  const stakingAddress = contracts.staking;
+
   const [
     totalAssets,
     totalShares,
-    exchangeRate,
     userAssetBalance,
     userShareBalance,
-    userStakedBalance,
   ] = await Promise.all([
-    stakingContract.totalAssets().catch(() => BigInt(0)),
-    stakingContract.totalShares().catch(() => BigInt(0)),
-    stakingContract.exchangeRate().catch(() => ethers.parseEther("1")),
+    assetContract.balanceOf(stakingAddress).catch(() => BigInt(0)),
+    shareContract.totalSupply().catch(() => BigInt(0)),
     assetContract.balanceOf(userAddress).catch(() => BigInt(0)),
     shareContract.balanceOf(userAddress).catch(() => BigInt(0)),
-    stakingContract.stakedBalance(userAddress).catch(() => BigInt(0)),
   ]);
+
+  const rate =
+    totalShares === BigInt(0)
+      ? ethers.parseEther("1")
+      : (totalAssets * ethers.parseEther("1")) / totalShares;
 
   return {
     totalAssets: ethers.formatEther(totalAssets),
     totalShares: ethers.formatEther(totalShares),
-    exchangeRate: ethers.formatEther(exchangeRate),
+    exchangeRate: ethers.formatEther(rate),
     userAssetBalance: ethers.formatEther(userAssetBalance),
     userShareBalance: ethers.formatEther(userShareBalance),
-    userStakedBalance: ethers.formatEther(userStakedBalance),
+    userStakedBalance: ethers.formatEther(userShareBalance),
   };
 }
 
@@ -249,32 +303,19 @@ export async function stakeTokens(
   const approveTx = await assetContract.approve(stakingAddress, parsedAmount);
   await approveTx.wait();
 
-  // Then deposit
   const stakingContract = new Contract(
     stakingAddress,
     STAKING_VAULT_ABI,
     signer
   );
+  const sharesMinted = await stakingContract.previewDeposit(parsedAmount);
   const depositTx = await stakingContract.deposit(parsedAmount);
-  const receipt = await depositTx.wait();
+  await depositTx.wait();
 
-  // Parse the Deposit event to get shares minted
-  let sharesMinted = amount; // fallback
-  for (const log of receipt.logs) {
-    try {
-      const parsed = stakingContract.interface.parseLog({
-        topics: [...log.topics],
-        data: log.data,
-      });
-      if (parsed?.name === "Deposit") {
-        sharesMinted = ethers.formatEther(parsed.args.shares);
-      }
-    } catch {
-      // not our event
-    }
-  }
-
-  return { txHash: depositTx.hash, shares: sharesMinted };
+  return {
+    txHash: depositTx.hash,
+    shares: ethers.formatEther(sharesMinted),
+  };
 }
 
 export async function unstakeTokens(
@@ -291,26 +332,14 @@ export async function unstakeTokens(
     signer
   );
   const parsedShares = ethers.parseEther(amount);
+  const assetsReturned = await stakingContract.previewWithdraw(parsedShares);
   const tx = await stakingContract.withdraw(parsedShares);
-  const receipt = await tx.wait();
+  await tx.wait();
 
-  // Parse the Withdraw event to get assets returned
-  let assetsReturned = amount; // fallback
-  for (const log of receipt.logs) {
-    try {
-      const parsed = stakingContract.interface.parseLog({
-        topics: [...log.topics],
-        data: log.data,
-      });
-      if (parsed?.name === "Withdraw") {
-        assetsReturned = ethers.formatEther(parsed.args.assets);
-      }
-    } catch {
-      // not our event
-    }
-  }
-
-  return { txHash: tx.hash, assets: assetsReturned };
+  return {
+    txHash: tx.hash,
+    assets: ethers.formatEther(assetsReturned),
+  };
 }
 
 // ---- Utility ----
@@ -363,4 +392,8 @@ export function clearContractData(): void {
 }
 
 // Re-export chain constants for convenience
-export { HOODI_CHAIN_ID, HOODI_EXPLORER } from "./abis";
+export {
+  HOODI_CHAIN_ID,
+  HOODI_EXPLORER,
+  HOODI_RPC_PRIMARY,
+} from "./abis";

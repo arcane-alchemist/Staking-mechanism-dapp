@@ -18,10 +18,12 @@ import {
   loadContractData,
   saveContractData,
   deployERC20,
+  deployShareToken,
   deployStakingVault,
   type DeployedContracts,
   type SavedContractData,
   HOODI_CHAIN_ID,
+  HOODI_RPC_PRIMARY,
 } from "@/lib/contracts/web3";
 import { Toaster, toast } from "sonner";
 
@@ -118,10 +120,21 @@ export function StakingDashboard() {
     try {
       const addr = await connectWallet();
       setWalletAddress(addr);
-      toast.success("Wallet connected on Holesky Testnet");
+      toast.success("Wallet connected on Ethereum Hoodi");
     } catch (err: unknown) {
-      const error = err as Error;
-      toast.error(error.message || "Failed to connect wallet");
+      const error = err as Error & { code?: number };
+      const msg = error?.message ?? String(err);
+      let userMessage = msg;
+      if (error.code === 4001) {
+        userMessage = "Connection rejected. Approve the request in MetaMask to connect.";
+      } else if (
+        /failed to connect|not connected|connection/i.test(msg) ||
+        msg.includes("MetaMask")
+      ) {
+        userMessage =
+          "Could not connect. Unlock MetaMask, refresh the page, and try again. If you rejected the popup, click Connect again.";
+      }
+      toast.error(userMessage);
     }
   }, []);
 
@@ -152,9 +165,9 @@ export function StakingDashboard() {
         setDeployStep(1);
         toast.success(`Asset Token deployed: ${assetAddress.slice(0, 10)}...`);
 
-        // Step 2: Deploy Share ERC20
+        // Step 2: Deploy Share Token (dedicated share-token bytecode)
         toast.info("Deploying Share Token... Confirm in MetaMask");
-        const shareAddress = await deployERC20(
+        const shareAddress = await deployShareToken(
           config.shareName,
           config.shareSymbol
         );
@@ -208,15 +221,27 @@ export function StakingDashboard() {
         setIsDeployed(true);
         setIsDeploying(false);
 
-        toast.success("All contracts deployed successfully on Holesky!");
+        toast.success("All contracts deployed successfully on Ethereum Hoodi!");
 
         // Refresh on-chain state
         setTimeout(() => refreshOnChainState(), 2000);
       } catch (err: unknown) {
         const error = err as Error;
+        const msg = error?.message ?? String(err);
         console.log("[v0] Deploy error:", error);
         setIsDeploying(false);
-        toast.error(`Deployment failed: ${error.message}`);
+        const isRpcOrNetwork =
+          /RPC|rpc|endpoint|network|fetch|ETIMEDOUT|ECONNREFUSED|could not detect network/i.test(
+            msg
+          );
+        if (isRpcOrNetwork) {
+          toast.error(
+            `Deployment failed: ${msg}. Ensure Ethereum Hoodi is configured in MetaMask. Try switching networks and back to Hoodi, or add Hoodi manually with RPC: ${HOODI_RPC_PRIMARY}`,
+            { duration: 8000 }
+          );
+        } else {
+          toast.error(`Deployment failed: ${msg}`);
+        }
       }
     },
     [walletAddress, refreshOnChainState]
@@ -397,7 +422,7 @@ export function StakingDashboard() {
             <div className="flex items-center gap-2 mb-4">
               <div className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
                 <span className="text-xs font-medium text-primary">
-                  Holesky Testnet
+                  Ethereum Hoodi
                 </span>
               </div>
               {walletAddress && (
@@ -413,7 +438,7 @@ export function StakingDashboard() {
               <span className="text-primary">Earn Rewards.</span>
             </h2>
             <p className="mt-3 text-muted-foreground max-w-lg leading-relaxed">
-              Deploy your own ERC20 staking vault on Ethereum Holesky testnet.
+              Deploy your own ERC20 staking vault on Ethereum Hoodi testnet.
               Deposit assets, receive shares, and grow your position over time.
             </p>
             <div className="flex items-center gap-4 mt-6">
@@ -484,7 +509,7 @@ export function StakingDashboard() {
           </p>
           <div className="flex items-center gap-4">
             <span className="text-xs text-muted-foreground">
-              Holesky Testnet (Chain ID: 17000)
+              Ethereum Hoodi (Chain ID: 560048)
             </span>
             <span className="text-xs text-muted-foreground">
               Powered by Ethereum

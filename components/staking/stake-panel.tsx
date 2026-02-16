@@ -49,6 +49,14 @@ export function StakePanel({
   const [unstakeAmount, setUnstakeAmount] = useState("");
   const [activeTab, setActiveTab] = useState("stake");
 
+  // Ensure amount string is never negative (for inputs and submit)
+  const clampNonNegative = (value: string): string => {
+    if (value === "" || value === "-") return value === "-" ? "0" : value;
+    const num = Number.parseFloat(value);
+    if (Number.isNaN(num) || num < 0) return "0";
+    return value;
+  };
+
   const stakePreview = stakeAmount ? previewDeposit(stakeAmount) : "0";
   const unstakePreview = unstakeAmount ? previewWithdraw(unstakeAmount) : "0";
 
@@ -121,8 +129,9 @@ export function StakePanel({
                   <div className="flex items-center gap-3">
                     <Input
                       type="number"
+                      min={0}
                       value={stakeAmount}
-                      onChange={(e) => setStakeAmount(e.target.value)}
+                      onChange={(e) => setStakeAmount(clampNonNegative(e.target.value))}
                       placeholder="0.00"
                       className="border-0 bg-transparent text-2xl font-bold text-foreground placeholder:text-muted-foreground/40 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
                     />
@@ -197,7 +206,7 @@ export function StakePanel({
               </div>
 
               <Button
-                onClick={() => onStake(stakeAmount)}
+                onClick={() => onStake(clampNonNegative(stakeAmount) || "0")}
                 disabled={isProcessing || !stakeAmount || Number(stakeAmount) <= 0}
                 className="w-full h-12 text-base font-semibold bg-primary text-primary-foreground hover:bg-primary/90"
               >
@@ -232,8 +241,9 @@ export function StakePanel({
                   <div className="flex items-center gap-3">
                     <Input
                       type="number"
+                      min={0}
                       value={unstakeAmount}
-                      onChange={(e) => setUnstakeAmount(e.target.value)}
+                      onChange={(e) => setUnstakeAmount(clampNonNegative(e.target.value))}
                       placeholder="0.00"
                       className="border-0 bg-transparent text-2xl font-bold text-foreground placeholder:text-muted-foreground/40 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
                     />
@@ -308,7 +318,7 @@ export function StakePanel({
               </div>
 
               <Button
-                onClick={() => onUnstake(unstakeAmount)}
+                onClick={() => onUnstake(clampNonNegative(unstakeAmount) || "0")}
                 disabled={
                   isProcessing || !unstakeAmount || Number(unstakeAmount) <= 0
                 }

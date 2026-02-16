@@ -57,7 +57,7 @@ export function Header({
             StakeVault
           </h1>
           <p className="text-xs text-muted-foreground">
-            Holesky Testnet
+            Ethereum Hoodi
           </p>
         </div>
       </div>
@@ -88,7 +88,7 @@ export function Header({
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary border border-border">
           <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
           <span className="text-xs font-medium text-muted-foreground">
-            Holesky
+            Hoodi
           </span>
         </div>
 

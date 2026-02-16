@@ -92,7 +92,7 @@ function ContractRow({ contract }: { contract: ContractInfo }) {
               </a>
             </TooltipTrigger>
             <TooltipContent className="bg-popover border-border text-popover-foreground">
-              <p>View on Holesky Etherscan</p>
+              <p>View on Hoodi Explorer</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -114,7 +114,7 @@ export function ContractsPanel({ contracts, isDeployed }: ContractsPanelProps) {
               Deployed Contracts
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Holesky Testnet
+              Ethereum Hoodi
             </p>
           </div>
         </div>
@@ -141,15 +141,15 @@ export function ContractsPanel({ contracts, isDeployed }: ContractsPanelProps) {
             <div className="mt-4 p-4 rounded-lg bg-primary/5 border border-primary/10">
               <p className="text-xs text-muted-foreground">
                 Contract addresses and ABIs are stored in localStorage. These
-                addresses are deployed on Holesky testnet (Chain ID: 17000) and
+                addresses are deployed on Ethereum Hoodi (Chain ID: 560048) and
                 can be verified on{" "}
                 <a
-                  href="https://holesky.etherscan.io"
+                  href="https://light-hoodi.beaconcha.in"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
                 >
-                  holesky.etherscan.io
+                  light-hoodi.beaconcha.in
                 </a>
                 .
               </p>
